@@ -1,3 +1,50 @@
+// const express = require("express");
+// const mongoose = require("mongoose");
+// const bodyParser = require("body-parser");
+// const cors = require("cors");
+// require("dotenv").config();
+
+// const customerRoutes = require("./routes/customerRoutes");
+// const employeeRoutes = require("./routes/employeeRoutes");
+// const adminRoutes = require("./routes/adminRoutes"); // Admin routes for login and registration
+
+// const app = express();
+// const port = process.env.PORT || 5000; // Use the environment PORT variable
+
+// // MongoDB connection using environment variable
+// const uri = process.env.MONGO_URL;
+// mongoose
+//   .connect(uri, {
+//     useNewUrlParser: true,
+//     useUnifiedTopology: true,
+//   })
+//   .then(() => console.log("MongoDB connected successfully"))
+//   .catch((err) => console.error("MongoDB connection error:", err));
+
+
+// // Enable CORS for specific origin (your frontend)
+// app.use(cors());
+
+// app.use(bodyParser.json());
+
+// // Basic root route
+// app.get("/", (req, res) => {
+//   res.send("Welcome to the API!"); // Change this to your preferred response
+// });
+
+// // Use routes
+// app.use("/api/customers", customerRoutes);
+// app.use("/api", employeeRoutes);
+// app.use("/api/admin", adminRoutes); // Admin routes for login and registration
+
+
+
+
+// app.listen(port, () => {
+//   console.log(`Server running on port ${port}`);
+// });
+
+
 const express = require("express");
 const mongoose = require("mongoose");
 const bodyParser = require("body-parser");
@@ -6,40 +53,49 @@ require("dotenv").config();
 
 const customerRoutes = require("./routes/customerRoutes");
 const employeeRoutes = require("./routes/employeeRoutes");
-const adminRoutes = require("./routes/adminRoutes"); // Admin routes for login and registration
+const adminRoutes = require("./routes/adminRoutes");
+
+const inventoryRoutes = require("./routes/inventory");
+const customerProcessRoutes = require("./routes/customer"); // process-related customer actions (not same as customer auth)
+const financeRoutes = require("./routes/finance");
+const dispatchRoutes = require("./routes/dispatch");
+const driverRoutes = require("./routes/driver");
 
 const app = express();
-const port = process.env.PORT || 5000; // Use the environment PORT variable
+const port = process.env.PORT || 5000;
 
-// MongoDB connection using environment variable
+// ✅ Connect to MongoDB using environment variable
 const uri = process.env.MONGO_URL;
 mongoose
   .connect(uri, {
     useNewUrlParser: true,
     useUnifiedTopology: true,
   })
-  .then(() => console.log("MongoDB connected successfully"))
-  .catch((err) => console.error("MongoDB connection error:", err));
+  .then(() => console.log("✅ MongoDB connected successfully"))
+  .catch((err) => console.error("❌ MongoDB connection error:", err));
 
-
-// Enable CORS for specific origin (your frontend)
+// ✅ Middleware
 app.use(cors());
-
 app.use(bodyParser.json());
 
-// Basic root route
+// ✅ Root route
 app.get("/", (req, res) => {
-  res.send("Welcome to the API! Aora.Dev"); // Change this to your preferred response
+  res.send("Welcome to the Corrugated Sheets Ltd API 🚀");
 });
 
-// Use routes
-app.use("/api/customers", customerRoutes);
-app.use("/api", employeeRoutes);
-app.use("/api/admin", adminRoutes); // Admin routes for login and registration
+// ✅ Authentication + Registration Routes
+app.use("/api/customers", customerRoutes); // Customer signup/login
+app.use("/api", employeeRoutes);           // Employee signup/login
+app.use("/api/admin", adminRoutes);        // Admin auth
 
+// ✅ System Process Routes (Order Workflow)
+app.use("/api/inventory", inventoryRoutes);        // Inventory Manager actions
+app.use("/api/customer", customerProcessRoutes);   // Product browsing, orders, feedback
+app.use("/api/finance", financeRoutes);            // Finance Manager payment approvals
+app.use("/api/dispatch", dispatchRoutes);          // Dispatch Manager duties
+app.use("/api/driver", driverRoutes);              // Driver deliveries
 
-
-
+// ✅ Start server
 app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
+  console.log(`🚀 Server running on port ${port}`);
 });
