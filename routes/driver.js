@@ -3,11 +3,24 @@ const router = express.Router();
 const Dispatch = require("../models/Dispatch");
 const Order = require("../models/Order");
 
-// ✅ View assigned orders
+// ✅ View assigned orders with full customer info
 router.get("/assigned/:driverId", async (req, res) => {
-  const orders = await Dispatch.find({ driver: req.params.driverId }).populate("order");
-  res.json(orders);
+  try {
+    const orders = await Dispatch.find({ driver: req.params.driverId })
+      .populate({
+        path: "order",
+        populate: {
+          path: "customer", // This will populate the customer inside the order
+        },
+      });
+
+    res.json(orders);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
 });
+
 
 // ✅ Mark delivery complete
 router.put("/delivered/:dispatchId", async (req, res) => {

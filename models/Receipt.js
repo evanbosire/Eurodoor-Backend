@@ -6,7 +6,8 @@ const ReceiptSchema = new mongoose.Schema({
   payment: { type: mongoose.Schema.Types.ObjectId, ref: "Payment", required: true },
   amountPaid: { type: Number, required: true },
   code: { type: String },
-  generatedAt: { type: Date, default: Date.now }
+  generatedAt: { type: Date, default: Date.now },
+  receiptUrl: { type: String }
 });
 
 const Receipt = mongoose.model("Receipt", ReceiptSchema);
