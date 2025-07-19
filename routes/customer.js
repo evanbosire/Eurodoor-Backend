@@ -26,8 +26,8 @@ router.get("/products", async (req, res) => {
       { $match: { status: "active" } },
       {
         $group: {
-          _id: "$title", // Group by title
-          productId: { $first: "$_id" }, // Get the first product _id
+          _id: "$title",
+          productId: { $first: "$_id" }, // Maintain original ObjectId
           description: { $first: "$description" },
           price: { $first: "$price" },
           status: { $first: "$status" },
@@ -37,8 +37,7 @@ router.get("/products", async (req, res) => {
       },
       {
         $project: {
-          _id: 0,
-          id: "$productId", // Return as 'id' (or '_id' if preferred)
+          _id: "$productId", // Use ObjectId as primary identifier
           title: "$_id",
           description: 1,
           price: 1,
