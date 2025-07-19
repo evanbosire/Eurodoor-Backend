@@ -15,6 +15,8 @@ const financeRoutes = require("./routes/finance");
 const dispatchRoutes = require("./routes/dispatch");
 const driverRoutes = require("./routes/driver");
 
+const productionRoutes = require("./routes/productionRoutes");
+
 const app = express();
 const port = process.env.PORT || 5000;
 
@@ -49,6 +51,7 @@ app.use("/api/finance", financeRoutes);            // Finance Manager payment ap
 app.use("/api/dispatch", dispatchRoutes);          // Dispatch Manager duties
 app.use("/api/driver", driverRoutes);              // Driver deliveries
 
+app.use("/api/production", productionRoutes);      //production routes 
 
 
 app.use("/receipts", express.static(path.join(__dirname, "public/receipts")));
