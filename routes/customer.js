@@ -133,6 +133,8 @@ router.get("/cart/view/:customerId", async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 });
+
+//  customer to update the cart info
 router.put("/cart/update", async (req, res) => {
   const { customerId, productId, quantity } = req.body;
 

@@ -7,95 +7,95 @@ const Payment = require("../models/Payment");
 
 // ✅ POST: Add or update product by title
 
-router.post("/products", async (req, res) => {
-  try {
-    const { title, description, price, quantity, status } = req.body;
-
-    // 🔎 1. Check in the ProductStore
-    const storeProduct = await ProductStore.findOne({ doorName: title });
-
-    if (!storeProduct) {
-      return res.status(404).json({ message: "Product not found in store." });
-    }
-
-    // ❌ Not enough quantity in store
-    if (storeProduct.quantity < quantity) {
-      return res.status(400).json({ message: "Insufficient quantity in store." });
-    }
-
-    // 🧮 Deduct quantity from ProductStore
-    storeProduct.quantity -= quantity;
-    await storeProduct.save();
-
-    // ✅ 2. Check if product already exists in main Product model
-    let product = await Product.findOne({ title });
-
-    if (product) {
-      // ✅ Update existing product (append quantity and optional fields)
-      product.quantity += quantity;
-      if (description) product.description = description;
-      if (price) product.price = price;
-      if (status) product.status = status;
-
-      await product.save();
-
-      return res.status(200).json({
-        message: "Product already exists. Quantity and details updated.",
-        product,
-      });
-    }
-
-    // 🆕 3. Create new product in Product model
-    const newProduct = new Product({
-      title,
-      description: description || storeProduct.description,
-      price: price || 0,
-      quantity,
-      status: status || "available"
-    });
-
-    await newProduct.save();
-
-    res.status(201).json({
-      message: "New product created from store.",
-      product: newProduct,
-    });
-
-  } catch (err) {
-    console.error(err);
-    res.status(400).json({ message: err.message });
-  }
-});
-
 // router.post("/products", async (req, res) => {
 //   try {
 //     const { title, description, price, quantity, status } = req.body;
 
-//     // Check if a product with the same title exists
-//     const existingProduct = await Product.findOne({ title });
+//     // 🔎 1. Check in the ProductStore
+//     const storeProduct = await ProductStore.findOne({ doorName: title });
 
-//     if (existingProduct) {
-//       // ✅ Product exists — increase quantity
-//       existingProduct.quantity += quantity;
-//       await existingProduct.save();
+//     if (!storeProduct) {
+//       return res.status(404).json({ message: "Product not found in store." });
+//     }
+
+//     // ❌ Not enough quantity in store
+//     if (storeProduct.quantity < quantity) {
+//       return res.status(400).json({ message: "Insufficient quantity in store." });
+//     }
+
+//     // 🧮 Deduct quantity from ProductStore
+//     storeProduct.quantity -= quantity;
+//     await storeProduct.save();
+
+//     // ✅ 2. Check if product already exists in main Product model
+//     let product = await Product.findOne({ title });
+
+//     if (product) {
+//       // ✅ Update existing product (append quantity and optional fields)
+//       product.quantity += quantity;
+//       if (description) product.description = description;
+//       if (price) product.price = price;
+//       if (status) product.status = status;
+
+//       await product.save();
+
 //       return res.status(200).json({
-//         message: "Product already exists. Quantity updated.",
-//         product: existingProduct,
+//         message: "Product already exists. Quantity and details updated.",
+//         product,
 //       });
 //     }
 
-//     // ✅ Product does not exist — create new
-//     const newProduct = new Product({ title, description, price, quantity, status });
+//     // 🆕 3. Create new product in Product model
+//     const newProduct = new Product({
+//       title,
+//       description: description || storeProduct.description,
+//       price: price || 0,
+//       quantity,
+//       status: status || "available"
+//     });
+
 //     await newProduct.save();
 
 //     res.status(201).json({
-//       message: "New product created.",
+//       message: "New product created from store.",
 //       product: newProduct,
 //     });
+
 //   } catch (err) {
+//     console.error(err);
 //     res.status(400).json({ message: err.message });
 //   }
 // });
+
+router.post("/products", async (req, res) => {
+  try {
+    const { title, description, price, quantity, status } = req.body;
+
+    // Check if a product with the same title exists
+    const existingProduct = await Product.findOne({ title });
+
+    if (existingProduct) {
+      // ✅ Product exists — increase quantity
+      existingProduct.quantity += quantity;
+      await existingProduct.save();
+      return res.status(200).json({
+        message: "Product already exists. Quantity updated.",
+        product: existingProduct,
+      });
+    }
+
+    // ✅ Product does not exist — create new
+    const newProduct = new Product({ title, description, price, quantity, status });
+    await newProduct.save();
+
+    res.status(201).json({
+      message: "New product created.",
+      product: newProduct,
+    });
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
 
 
 
