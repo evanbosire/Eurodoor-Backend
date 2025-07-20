@@ -175,8 +175,8 @@ router.put("/release/:orderId", async (req, res) => {
 
       await InventoryLog.create({
         product: product._id,
-        quantity: -item.quantity, // Negative for reduction
-        type: "dispatch",
+        quantity: -item.quantity,
+        type: "release", // Using the correct enum value
         relatedOrder: order._id
       });
     }
@@ -187,7 +187,11 @@ router.put("/release/:orderId", async (req, res) => {
 
     res.json({ message: "Order released for dispatch" });
   } catch (err) {
-    res.status(500).json({ message: "Server error", error: err.message });
+    console.error('Release error:', err);
+    res.status(500).json({ 
+      message: "Server error",
+      error: err.message
+    });
   }
 });
 
