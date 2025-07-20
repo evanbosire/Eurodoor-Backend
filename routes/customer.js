@@ -273,29 +273,179 @@ router.get("/replies/:customerId", async (req, res) => {
   }
 });
 
-router.get("/receipt/:orderId", async (req, res) => {
+// router.get("/receipt/:orderId", async (req, res) => {
+//   try {
+//     const order = await Order.findById(req.params.orderId).populate(
+//       "items.product customer"
+//     );
+//     if (!order) return res.status(404).json({ message: "Order not found" });
+
+//     const payment = await Payment.findOne({
+//       order: order._id,
+//       status: "confirmed",
+//     });
+//     if (!payment)
+//       return res.status(400).json({ message: "Payment not confirmed yet" });
+
+//     const receiptsDir = path.join(__dirname, "../public/receipts");
+//     if (!fs.existsSync(receiptsDir)) {
+//       fs.mkdirSync(receiptsDir, { recursive: true });
+//     }
+
+//     const receiptPath = path.join(receiptsDir, `${order._id}.pdf`);
+//     const writeStream = fs.createWriteStream(receiptPath);
+//     const doc = new PDFDocument({ size: "A4", margin: 50 });
+//     doc.pipe(writeStream);
+
+//     // === Header ===
+//     doc.fontSize(22).fillColor("#003366").text("EuroDoor", { align: "center" });
+//     doc.moveDown(0.5);
+//     doc
+//       .fontSize(18)
+//       .fillColor("#000000")
+//       .text("Customer Order Receipt", { align: "center" });
+//     doc.moveDown();
+
+//     // === Customer Info ===
+//     const customer = order.customer;
+//     doc.fontSize(12);
+//     doc.text(`Receipt ID: ${order._id}`);
+//     doc.text(`Customer Name: ${customer.customerName}`);
+//     doc.text(`Customer Email: ${customer.email}`);
+//     if (customer.phone) doc.text(`Customer Phone: ${customer.phone}`);
+//     doc.moveDown();
+
+//     // === Product Table Header ===
+//     doc
+//       .fontSize(13)
+//       .fillColor("#003366")
+//       .text("Order Details:", { underline: true });
+//     doc.moveDown(0.5);
+
+//     // Table Column Titles
+//     doc.fontSize(12).fillColor("#000000");
+//     const y = doc.y;
+//     doc.text("No", 50, y);
+//     doc.text("Product", 100, y);
+//     doc.text("Qty", 300, y);
+//     doc.text("Unit Price", 350, y);
+//     doc.text("Subtotal", 450, y);
+//     doc
+//       .moveTo(50, y + 15)
+//       .lineTo(550, y + 15)
+//       .stroke();
+
+//     // Table Rows
+//     let total = 0;
+//     let rowY = y + 20;
+//     order.items.forEach((item, index) => {
+//       const subtotal = item.quantity * item.price;
+//       total += subtotal;
+
+//       doc.fontSize(11);
+//       doc.text(`${index + 1}`, 50, rowY);
+//       doc.text(item.title, 100, rowY, { width: 180 });
+//       doc.text(item.quantity.toString(), 300, rowY);
+//       doc.text(`KES ${item.price}`, 350, rowY);
+//       doc.text(`KES ${subtotal}`, 450, rowY);
+//       rowY += 20;
+//     });
+
+//     doc.moveTo(50, rowY).lineTo(550, rowY).stroke();
+//     rowY += 10;
+
+//     // === Payment Summary ===
+//     rowY += 20;
+//     doc
+//       .fontSize(12)
+//       .text(`Total Amount Paid: KES ${payment.amountPaid}`, 350, rowY, {
+//         align: "left",
+//       });
+
+//     rowY += 20;
+//     doc.text(`Payment Code (M-PESA): ${payment.code}`, 350, rowY, {
+//       align: "left",
+//     });
+
+//     rowY += 30;
+//     doc.text(`Payment Date: ${payment.createdAt.toDateString()}`, 350, rowY, {
+//       align: "left",
+//     });
+
+//     doc.moveDown(3);
+
+//     // === Footer ===
+//     doc.moveDown(2);
+//     doc.fontSize(10).fillColor("gray");
+
+//     // Use full page width and center-align
+//     doc.text("Thank you for shopping with EuroDoor!", 50, doc.y, {
+//       width: 500,
+//       align: "center",
+//     });
+//     doc.text("For inquiries, contact us at eurodoor@gmail.com", 50, doc.y, {
+//       width: 500,
+//       align: "center",
+//     });
+//     doc.end();
+
+//     writeStream.on("finish", async () => {
+//       const receiptUrl = `/receipts/${order._id}.pdf`;
+
+//       await Receipt.create({
+//         customer: customer._id,
+//         order: order._id,
+//         payment: payment._id,
+//         amountPaid: payment.amountPaid,
+//         code: payment.code,
+//         receiptUrl,
+//         generatedAt: new Date(),
+//       });
+
+//       res.status(200).json({
+//         message: "Receipt generated successfully",
+//         receiptUrl,
+//       });
+//     });
+
+//     writeStream.on("error", (err) => {
+//       console.error("Write stream error:", err);
+//       res.status(500).json({ message: "Error saving receipt file" });
+//     });
+//   } catch (err) {
+//     console.error("Error generating receipt:", err);
+//     res.status(500).json({ message: "Internal server error" });
+//   }
+// });
+
+// Add this new route for generating receipts
+router.post("/generate-receipt", async (req, res) => {
   try {
-    const order = await Order.findById(req.params.orderId).populate(
-      "items.product customer"
-    );
+    const { orderId } = req.body;
+    
+    const order = await Order.findById(orderId).populate("items.product customer");
     if (!order) return res.status(404).json({ message: "Order not found" });
 
     const payment = await Payment.findOne({
       order: order._id,
       status: "confirmed",
     });
-    if (!payment)
+    if (!payment) {
       return res.status(400).json({ message: "Payment not confirmed yet" });
-
-    const receiptsDir = path.join(__dirname, "../public/receipts");
-    if (!fs.existsSync(receiptsDir)) {
-      fs.mkdirSync(receiptsDir, { recursive: true });
     }
 
-    const receiptPath = path.join(receiptsDir, `${order._id}.pdf`);
-    const writeStream = fs.createWriteStream(receiptPath);
+    // Generate PDF (same as your existing receipt generation code)
     const doc = new PDFDocument({ size: "A4", margin: 50 });
-    doc.pipe(writeStream);
+    let buffers = [];
+    doc.on('data', buffers.push.bind(buffers));
+    doc.on('end', () => {
+      const pdfData = Buffer.concat(buffers);
+      res.set({
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename=receipt_${order._id}.pdf`
+      });
+      res.send(pdfData);
+    });
 
     // === Header ===
     doc.fontSize(22).fillColor("#003366").text("EuroDoor", { align: "center" });
@@ -377,8 +527,6 @@ router.get("/receipt/:orderId", async (req, res) => {
     // === Footer ===
     doc.moveDown(2);
     doc.fontSize(10).fillColor("gray");
-
-    // Use full page width and center-align
     doc.text("Thank you for shopping with EuroDoor!", 50, doc.y, {
       width: 500,
       align: "center",
@@ -389,29 +537,6 @@ router.get("/receipt/:orderId", async (req, res) => {
     });
     doc.end();
 
-    writeStream.on("finish", async () => {
-      const receiptUrl = `/receipts/${order._id}.pdf`;
-
-      await Receipt.create({
-        customer: customer._id,
-        order: order._id,
-        payment: payment._id,
-        amountPaid: payment.amountPaid,
-        code: payment.code,
-        receiptUrl,
-        generatedAt: new Date(),
-      });
-
-      res.status(200).json({
-        message: "Receipt generated successfully",
-        receiptUrl,
-      });
-    });
-
-    writeStream.on("error", (err) => {
-      console.error("Write stream error:", err);
-      res.status(500).json({ message: "Error saving receipt file" });
-    });
   } catch (err) {
     console.error("Error generating receipt:", err);
     res.status(500).json({ message: "Internal server error" });
