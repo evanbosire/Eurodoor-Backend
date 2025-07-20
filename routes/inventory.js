@@ -146,28 +146,49 @@ router.get("/confirmed-payments", async (req, res) => {
 });
 // ✅ PUT: Release products for dispatch (decrease quantity)
 router.put("/release/:orderId", async (req, res) => {
-  const order = await Order.findById(req.params.orderId).populate("items.product");
-  if (!order) return res.status(404).json({ message: "Order not found" });
+  try {
+    const order = await Order.findById(req.params.orderId).populate("items.product");
+    
+    if (!order) return res.status(404).json({ message: "Order not found" });
+    if (order.status === 'released') {
+      return res.status(400).json({ message: "Order already released" });
+    }
 
-  for (const item of order.items) {
-    const product = await Product.findById(item.product._id);
-    if (!product) continue;
+    // Validate stock levels
+    for (const item of order.items) {
+      const product = await Product.findById(item.product._id);
+      if (!product) {
+        return res.status(400).json({ message: `Product ${item.title} not found` });
+      }
+      if (product.quantity < item.quantity || item.quantity <= 0) {
+        return res.status(400).json({ 
+          message: `Insufficient stock for ${item.title} (Available: ${product.quantity}, Requested: ${item.quantity})`
+        });
+      }
+    }
 
-    product.quantity -= item.quantity;
-    await product.save();
+    // Process the release
+    for (const item of order.items) {
+      const product = await Product.findById(item.product._id);
+      product.quantity -= item.quantity;
+      await product.save();
 
-    await InventoryLog.create({
-      product: product._id,
-      quantity: item.quantity,
-      type: "release",
-      relatedOrder: order._id
-    });
+      await InventoryLog.create({
+        product: product._id,
+        quantity: -item.quantity, // Negative for reduction
+        type: "dispatch",
+        relatedOrder: order._id
+      });
+    }
+
+    order.status = "released";
+    order.updatedAt = new Date();
+    await order.save();
+
+    res.json({ message: "Order released for dispatch" });
+  } catch (err) {
+    res.status(500).json({ message: "Server error", error: err.message });
   }
-
-  order.status = "released";
-  await order.save();
-
-  res.json({ message: "Order released for dispatch" });
 });
 
 module.exports = router;
