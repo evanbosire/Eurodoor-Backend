@@ -21,40 +21,6 @@ router.get("/employees/drivers", async (req, res) => {
   }
 });
 
-// ✅ PUT: Assign a driver to an order (no need for dispatchedBy)
-// // PUT /api/dispatch/assign/:orderId - assign a selected driver by ID
-// router.put("/assign/:orderId", async (req, res) => {
-//   const { driverId } = req.body;
-
-//   try {
-//     // Check if driver exists and is active
-//     const driver = await Employee.findOne({ _id: driverId, role: "Driver", status: "active" });
-//     if (!driver) return res.status(404).json({ message: "Driver not found or inactive" });
-
-//     // Create dispatch
-//     const dispatch = await Dispatch.create({
-//       order: req.params.orderId,
-//       driver: driver._id,
-//     });
-
-//     // Update order
-//     const order = await Order.findById(req.params.orderId);
-//     if (!order) return res.status(404).json({ message: "Order not found" });
-
-//     order.status = "shipped";
-//     await order.save();
-
-//     res.json({
-//       message: `Driver ${driver.firstName} ${driver.lastName} assigned successfully`,
-//       dispatch,
-//     });
-
-//   } catch (err) {
-//     console.error("Error assigning driver:", err);
-//     res.status(500).json({ message: "Internal server error" });
-//   }
-// });
-
 // PUT /api/dispatch/assign/:orderId - assign a selected driver by ID
 router.put("/assign/:orderId", async (req, res) => {
   const { driverId } = req.body;
@@ -113,14 +79,6 @@ router.put("/assign/:orderId", async (req, res) => {
   }
 });
 
-
-
-// // ✅ GET: View all customer feedbacks
-// router.get("/feedbacks", async (req, res) => {
-//   const feedbacks = await Feedback.find().populate("customer order");
-//   res.json(feedbacks);
-// });
-
 // ✅ GET: View all customer feedbacks with customer & order details
 router.get("/feedbacks", async (req, res) => {
   try {
@@ -155,6 +113,24 @@ router.put("/reply/:feedbackId", async (req, res) => {
   );
 
   res.json(feedback);
+});
+
+// GET /api/dispatch/dispatch-info/:orderId - get driver assignment info
+router.get("/dispatch-info/:orderId", async (req, res) => {
+  try {
+    const dispatch = await Dispatch.findOne({ order: req.params.orderId })
+      .populate('driver', 'firstName lastName email');
+    
+    if (!dispatch) {
+      return res.status(404).json({ message: "No dispatch record found" });
+    }
+
+    res.json({
+      driver: dispatch.driver
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
 });
 
 module.exports = router;
