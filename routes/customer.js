@@ -219,11 +219,12 @@ router.post("/payment", async (req, res) => {
   res.status(201).json({ message: "Payment successful. Order placed.", order });
 });
 
-// ✅ View own orders
+// ✅ View own orders (updated version)
 router.get("/orders/:customerId", async (req, res) => {
-  const orders = await Order.find({ customer: req.params.customerId }).populate(
-    "items.product"
-  );
+  const orders = await Order.find({ customer: req.params.customerId })
+    .populate("items.product")  // Populate product details
+    .populate("payment");       // Add this to populate payment details
+  
   res.json(orders);
 });
 
