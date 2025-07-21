@@ -578,30 +578,70 @@ router.get("/order-replies/:orderId", async (req, res) => {
 // ************ SERVICE BOOKING ROUTES *******************//
 
 //  1. CUSTOMER
-// 1. Customer creates a booking
+// // 1. Customer creates a booking
+// In your booking route
 router.post("/book", async (req, res) => {
   const { customer, doorType, locationDetails, price, paymentCode } = req.body;
 
   try {
-    // Create the booking
+    // Validate location details
+    if (!locationDetails || typeof locationDetails !== 'object') {
+      return res.status(400).json({ 
+        message: "Location details must be an object with address, city, county, postalCode, and instructions" 
+      });
+    }
+
+    // Create the booking with validated location details
     const booking = await ServiceBooking.create({
       customer,
-      doorType, // ✅ this must match the schema
-      locationDetails,
+      doorType,
+      locationDetails: {
+        address: locationDetails.address || '',
+        city: locationDetails.city || '',
+        county: locationDetails.county || '',
+        postalCode: locationDetails.postalCode || '',
+        instructions: locationDetails.instructions || ''
+      },
       price,
-      paymentCode,
+      paymentCode
     });
 
-    // Populate customer details (name, email, phone)
+    // Populate customer details
     const populatedBooking = await ServiceBooking.findById(booking._id)
       .populate("customer", "customerName email phone");
 
     res.status(201).json(populatedBooking);
   } catch (error) {
     console.error("Booking Error:", error);
-    res.status(500).json({ message: "Server error creating booking" });
+    res.status(500).json({ 
+      message: "Server error creating booking",
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
+// router.post("/book", async (req, res) => {
+//   const { customer, doorType, locationDetails, price, paymentCode } = req.body;
+
+//   try {
+//     // Create the booking
+//     const booking = await ServiceBooking.create({
+//       customer,
+//       doorType, // ✅ this must match the schema
+//       locationDetails,
+//       price,
+//       paymentCode,
+//     });
+
+//     // Populate customer details (name, email, phone)
+//     const populatedBooking = await ServiceBooking.findById(booking._id)
+//       .populate("customer", "customerName email phone");
+
+//     res.status(201).json(populatedBooking);
+//   } catch (error) {
+//     console.error("Booking Error:", error);
+//     res.status(500).json({ message: "Server error creating booking" });
+//   }
+// });
 
 // 3. CUSTOMER BOOKING TRACKING
 // Get all bookings for a specific customer
