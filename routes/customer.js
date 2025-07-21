@@ -543,6 +543,36 @@ router.post("/generate-receipt", async (req, res) => {
   }
 });
 
+// ✅ GET: Get replies for a specific order
+router.get("/order-replies/:orderId", async (req, res) => {
+  try {
+    const feedback = await Feedback.findOne({
+      order: req.params.orderId,
+      reply: { $exists: true, $ne: null }
+    });
+
+    if (!feedback) {
+      return res.status(404).json({ 
+        message: "No reply found for this order yet" 
+      });
+    }
+
+    res.json({
+      feedbackId: feedback._id,
+      originalFeedback: feedback.message,
+      reply: feedback.reply,
+      repliedAt: feedback.updatedAt
+    });
+
+  } catch (error) {
+    console.error("Error fetching order reply:", error);
+    res.status(500).json({ 
+      message: "Failed to fetch order reply",
+      error: error.message 
+    });
+  }
+});
+
 // ************ SERVICE BOOKING ROUTES *******************//
 
 
