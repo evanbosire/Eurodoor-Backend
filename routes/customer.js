@@ -647,59 +647,27 @@ router.post("/book", async (req, res) => {
 // Get all bookings for a specific customer
 router.get("/customer-bookings/:customerId", async (req, res) => {
   try {
-    const { customerId } = req.params;
-
-    // Validate customerId
-    if (!mongoose.Types.ObjectId.isValid(customerId)) {
-      return res.status(400).json({ message: "Invalid customer ID" });
-    }
-
-    // Find all bookings for this customer
-    const bookings = await ServiceBooking.find({ customer: customerId })
+    const bookings = await ServiceBooking.find({ customer: req.params.customerId })
       .populate("customer", "customerName email phone")
-      .sort({ createdAt: -1 }); // Newest first
+      .sort({ createdAt: -1 });
 
-    if (!bookings || bookings.length === 0) {
-      return res.status(404).json({ 
-        message: "No bookings found for this customer",
-        suggestions: [
-          "If you just made a booking, please wait a few minutes",
-          "Check if you're using the correct customer ID",
-          "Contact support if the issue persists"
-        ]
-      });
-    }
-
-    // Format the response with additional status information
-    const formattedBookings = bookings.map(booking => ({
-      _id: booking._id,
-      doorType: booking.doorType,
-      locationDetails: booking.locationDetails,
-      price: booking.price,
-      paymentStatus: booking.paymentStatus || 'pending',
-      serviceStatus: booking.serviceStatus || 'awaiting_payment',
-      paymentCode: booking.paymentCode,
-      createdAt: booking.createdAt,
-      updatedAt: booking.updatedAt,
-      customer: booking.customer
+    // Ensure locationDetails is always an object
+    const processedBookings = bookings.map(booking => ({
+      ...booking.toObject(),
+      locationDetails: booking.locationDetails || {}
     }));
 
     res.status(200).json({
-      count: formattedBookings.length,
-      bookings: formattedBookings,
+      count: processedBookings.length,
+      bookings: processedBookings,
       statusSummary: {
-        confirmed: formattedBookings.filter(b => b.paymentStatus === 'confirmed').length,
-        pending: formattedBookings.filter(b => b.paymentStatus === 'pending').length,
-        cancelled: formattedBookings.filter(b => b.paymentStatus === 'cancelled').length
+        confirmed: processedBookings.filter(b => b.paymentStatus === 'confirmed').length,
+        pending: processedBookings.filter(b => b.paymentStatus === 'pending').length
       }
     });
-
   } catch (error) {
     console.error("Booking Tracking Error:", error);
-    res.status(500).json({ 
-      message: "Server error retrieving bookings",
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
+    res.status(500).json({ message: "Server error retrieving bookings" });
   }
 });
 
