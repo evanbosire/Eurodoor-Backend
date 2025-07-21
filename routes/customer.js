@@ -8,6 +8,7 @@ const Feedback = require("../models/Feedback");
 const Receipt = require("../models/Receipt");
 const Payment = require("../models/Payment");
 const Customer = require("../models/Customer");
+const Employee = require("../models/Employee");
 
 // ********** SERVICE IMPORTS *********************//
 const ServiceBooking = require("../models/ServiceBooking");
