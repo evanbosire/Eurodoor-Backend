@@ -895,15 +895,21 @@ router.get("/payment-confirmed", async (req, res) => {
   }
 });
 
-// 3. Service manager assigns to supervisor
+// // 3. Service manager assigns to supervisor
+// In your booking route file
 router.put("/bookings/:id/allocate-supervisor", async (req, res) => {
-  const { supervisor } = req.body;
-
   try {
+    // Find the single supervisor
+    const supervisor = await Employee.findOne({ role: 'supervisor' });
+    
+    if (!supervisor) {
+      return res.status(404).json({ message: "No supervisor found" });
+    }
+
     const updatedBooking = await ServiceBooking.findByIdAndUpdate(
       req.params.id,
       {
-        supervisor,
+        supervisor: supervisor._id, // Use the found supervisor's ID
         serviceStatus: "allocated_to_supervisor",
       },
       { new: true }
@@ -922,6 +928,32 @@ router.put("/bookings/:id/allocate-supervisor", async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 });
+// router.put("/bookings/:id/allocate-supervisor", async (req, res) => {
+//   const { supervisor } = req.body;
+
+//   try {
+//     const updatedBooking = await ServiceBooking.findByIdAndUpdate(
+//       req.params.id,
+//       {
+//         supervisor,
+//         serviceStatus: "allocated_to_supervisor",
+//       },
+//       { new: true }
+//     ).populate("customer", "customerName email phone");
+
+//     if (!updatedBooking) {
+//       return res.status(404).json({ message: "Booking not found" });
+//     }
+
+//     res.status(200).json({
+//       message: "Supervisor allocated successfully",
+//       booking: updatedBooking,
+//     });
+//   } catch (error) {
+//     console.error("Error allocating supervisor:", error);
+//     res.status(500).json({ message: "Internal server error" });
+//   }
+// });
 
 // 9. Service Manager fetches all customer feedback
 router.get("/feedback-messages", async (req, res) => {
