@@ -1,4 +1,5 @@
 const express = require("express");
+const mongoose = require('mongoose'); 
 const router = express.Router();
 const Product = require("../models/Product");
 const Cart = require("../models/Cart");
@@ -18,6 +19,7 @@ const ServiceReceipt = require("../models/ServiceReceipt");
 const fs = require("fs");
 const path = require("path");
 const PDFDocument = require("pdfkit");
+
 
 // ✅ View products with merged quantities by title
 router.get("/products", async (req, res) => {
@@ -601,6 +603,65 @@ router.post("/book", async (req, res) => {
   }
 });
 
+// 3. CUSTOMER BOOKING TRACKING
+// Get all bookings for a specific customer
+router.get("/customer-bookings/:customerId", async (req, res) => {
+  try {
+    const { customerId } = req.params;
+
+    // Validate customerId
+    if (!mongoose.Types.ObjectId.isValid(customerId)) {
+      return res.status(400).json({ message: "Invalid customer ID" });
+    }
+
+    // Find all bookings for this customer
+    const bookings = await ServiceBooking.find({ customer: customerId })
+      .populate("customer", "customerName email phone")
+      .sort({ createdAt: -1 }); // Newest first
+
+    if (!bookings || bookings.length === 0) {
+      return res.status(404).json({ 
+        message: "No bookings found for this customer",
+        suggestions: [
+          "If you just made a booking, please wait a few minutes",
+          "Check if you're using the correct customer ID",
+          "Contact support if the issue persists"
+        ]
+      });
+    }
+
+    // Format the response with additional status information
+    const formattedBookings = bookings.map(booking => ({
+      _id: booking._id,
+      doorType: booking.doorType,
+      locationDetails: booking.locationDetails,
+      price: booking.price,
+      paymentStatus: booking.paymentStatus || 'pending',
+      serviceStatus: booking.serviceStatus || 'awaiting_payment',
+      paymentCode: booking.paymentCode,
+      createdAt: booking.createdAt,
+      updatedAt: booking.updatedAt,
+      customer: booking.customer
+    }));
+
+    res.status(200).json({
+      count: formattedBookings.length,
+      bookings: formattedBookings,
+      statusSummary: {
+        confirmed: formattedBookings.filter(b => b.paymentStatus === 'confirmed').length,
+        pending: formattedBookings.filter(b => b.paymentStatus === 'pending').length,
+        cancelled: formattedBookings.filter(b => b.paymentStatus === 'cancelled').length
+      }
+    });
+
+  } catch (error) {
+    console.error("Booking Tracking Error:", error);
+    res.status(500).json({ 
+      message: "Server error retrieving bookings",
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
 
 // customer generate service receipt
 
