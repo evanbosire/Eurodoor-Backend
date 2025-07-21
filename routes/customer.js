@@ -900,7 +900,7 @@ router.get("/payment-confirmed", async (req, res) => {
 router.put("/bookings/:id/allocate-supervisor", async (req, res) => {
   try {
     // Find the single supervisor
-    const supervisor = await Employee.findOne({ role: 'supervisor' });
+    const supervisor = await Employee.findOne({ role: 'Supervisor' });
     
     if (!supervisor) {
       return res.status(404).json({ message: "No supervisor found" });
