@@ -920,7 +920,7 @@ router.get("/supervisor-bookings", async (req, res) => {
 router.put("/bookings/:id/assign-technician", async (req, res) => {
   try {
     // Find the single technician
-    const technician = await Employee.findOne({ role: 'technician' });
+    const technician = await Employee.findOne({ role: 'Technician' });
     
     if (!technician) {
       return res.status(404).json({ message: "No technician found" });
