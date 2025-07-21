@@ -575,7 +575,7 @@ router.get("/order-replies/:orderId", async (req, res) => {
 
 // ************ SERVICE BOOKING ROUTES *******************//
 
-
+//  1. CUSTOMER
 // 1. Customer creates a booking
 router.post("/book", async (req, res) => {
   const { customer, doorType, locationDetails, price, paymentCode } = req.body;
@@ -601,30 +601,6 @@ router.post("/book", async (req, res) => {
   }
 });
 
-// GET pending-payments for finance
-router.get("/pending-payments", async (req, res) => {
-  try {
-    const pendingBookings = await ServiceBooking.find({ paymentStatus: "pending" })
-      .populate("customer", "name email") // Optional: populate customer info
-      .sort({ createdAt: -1 }); // Most recent first
-
-    res.status(200).json(pendingBookings);
-  } catch (err) {
-    console.error("Error fetching pending payments:", err);
-    res.status(500).json({ message: "Server error fetching pending bookings." });
-  }
-});
-
-
-// 2. Finance manager confirms payment
-router.put("/bookings/:id/confirm-payment", async (req, res) => {
-  const booking = await ServiceBooking.findByIdAndUpdate(
-    req.params.id,
-    { paymentStatus: "confirmed", serviceStatus: "payment_confirmed" },
-    { new: true }
-  );
-  res.json(booking);
-});
 
 // customer generate service receipt
 
@@ -803,7 +779,34 @@ router.get("/feedbacks/customer/:customerId", async (req, res) => {
   res.json(feedbacks);
 });
 
+//  2. FINANCE
+// GET pending-payments for finance
+router.get("/pending-payments", async (req, res) => {
+  try {
+    const pendingBookings = await ServiceBooking.find({ paymentStatus: "pending" })
+      .populate("customer", "customerName email") // Optional: populate customer info
+      .sort({ createdAt: -1 }); // Most recent first
 
+    res.status(200).json(pendingBookings);
+  } catch (err) {
+    console.error("Error fetching pending payments:", err);
+    res.status(500).json({ message: "Server error fetching pending bookings." });
+  }
+});
+
+
+// 2. Finance manager confirms payment
+router.put("/bookings/:id/confirm-payment", async (req, res) => {
+  const booking = await ServiceBooking.findByIdAndUpdate(
+    req.params.id,
+    { paymentStatus: "confirmed", serviceStatus: "payment_confirmed" },
+    { new: true }
+  );
+  res.json(booking);
+});
+
+
+//  3. SERVICE MANAGER
 
 // service manager GET/payment-confirmed
 router.get("/payment-confirmed", async (req, res) => {
@@ -851,47 +854,6 @@ router.put("/bookings/:id/allocate-supervisor", async (req, res) => {
   }
 });
 
-// GET /api/service-manager/bookings/supervisor-approved
-router.get("/bookings/supervisor-approved", async (req, res) => {
-  try {
-    const bookings = await ServiceBooking.find({ serviceStatus: "supervisor_approved" })
-      .populate("customer", "customerName phone email")
-      .sort({ createdAt: -1 }); // Optional: newest first
-
-    res.status(200).json({
-      message: "Supervisor-approved bookings fetched successfully",
-      bookings,
-    });
-  } catch (error) {
-    console.error("Error fetching supervisor-approved bookings:", error);
-    res.status(500).json({ message: "Internal server error" });
-  }
-});
-
-
-// PUT /api/service-manager/bookings/:id/service-manager-confirm
-router.put("/bookings/:id/service-manager-confirm", async (req, res) => {
-  try {
-    const booking = await ServiceBooking.findByIdAndUpdate(
-      req.params.id,
-      { serviceStatus: "service_manager_confirmed" },
-      { new: true }
-    ).populate("customer", "customerName phone email");
-
-    if (!booking) {
-      return res.status(404).json({ message: "Booking not found" });
-    }
-
-    res.status(200).json({
-      message: "Service confirmed by Service Manager successfully",
-      booking,
-    });
-  } catch (error) {
-    console.error("Error confirming booking:", error);
-    res.status(500).json({ message: "Internal server error" });
-  }
-});
-
 // 9. Service Manager fetches all customer feedback
 router.get("/feedback-messages", async (req, res) => {
   try {
@@ -933,7 +895,50 @@ router.put("/feedback/reply/:feedbackId", async (req, res) => {
   }
 });
 
+// GET /api/service-manager/bookings/supervisor-approved
+router.get("/bookings/supervisor-approved", async (req, res) => {
+  try {
+    const bookings = await ServiceBooking.find({ serviceStatus: "supervisor_approved" })
+      .populate("customer", "customerName phone email")
+      .sort({ createdAt: -1 }); // Optional: newest first
 
+    res.status(200).json({
+      message: "Supervisor-approved bookings fetched successfully",
+      bookings,
+    });
+  } catch (error) {
+    console.error("Error fetching supervisor-approved bookings:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+
+// PUT /api/service-manager/bookings/:id/service-manager-confirm
+router.put("/bookings/:id/service-manager-confirm", async (req, res) => {
+  try {
+    const booking = await ServiceBooking.findByIdAndUpdate(
+      req.params.id,
+      { serviceStatus: "service_manager_confirmed" },
+      { new: true }
+    ).populate("customer", "customerName phone email");
+
+    if (!booking) {
+      return res.status(404).json({ message: "Booking not found" });
+    }
+
+    res.status(200).json({
+      message: "Service confirmed by Service Manager successfully",
+      booking,
+    });
+  } catch (error) {
+    console.error("Error confirming booking:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+
+
+//  4. SUPERVISOR
 
 // GET /api/supervisor/bookings
 router.get("/supervisor-bookings", async (req, res) => {
@@ -1022,7 +1027,7 @@ router.put("/bookings/:id/supervisor-approve", async (req, res) => {
   }
 });
 
-
+//  TECHNICIAN
 // GET /api/technician gets assigned bookings
 router.get("/technician/bookings", async (req, res) => {
   try {
