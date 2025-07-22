@@ -67,15 +67,72 @@ const Payment = require("../models/Payment");
 //   }
 // });
 
+// router.post("/products", async (req, res) => {
+//   try {
+//     const { title, description, price, quantity, status } = req.body;
+
+//     // Check if a product with the same title exists
+//     const existingProduct = await Product.findOne({ title });
+
+//     if (existingProduct) {
+//       // ✅ Product exists — increase quantity
+//       existingProduct.quantity += quantity;
+//       await existingProduct.save();
+//       return res.status(200).json({
+//         message: "Product already exists. Quantity updated.",
+//         product: existingProduct,
+//       });
+//     }
+
+//     // ✅ Product does not exist — create new
+//     const newProduct = new Product({ title, description, price, quantity, status });
+//     await newProduct.save();
+
+//     res.status(201).json({
+//       message: "New product created.",
+//       product: newProduct,
+//     });
+//   } catch (err) {
+//     res.status(400).json({ message: err.message });
+//   }
+// });
+
 router.post("/products", async (req, res) => {
   try {
     const { title, description, price, quantity, status } = req.body;
 
-    // Check if a product with the same title exists
+    // 1. Check total available quantity in ProductStore for the given doorName
+    const storeProducts = await ProductStore.find({ doorName: title });
+
+    if (!storeProducts.length) {
+      return res.status(404).json({ message: "Product not found in the store." });
+    }
+
+    const totalAvailable = storeProducts.reduce((acc, item) => acc + item.quantity, 0);
+
+    if (totalAvailable < quantity) {
+      return res.status(400).json({ message: "Not enough quantity available in the store." });
+    }
+
+    // 2. Subtract quantity from ProductStore (loop over documents until enough is deducted)
+    let quantityToSubtract = quantity;
+    for (const product of storeProducts) {
+      if (quantityToSubtract === 0) break;
+
+      if (product.quantity <= quantityToSubtract) {
+        quantityToSubtract -= product.quantity;
+        await ProductStore.findByIdAndDelete(product._id); // delete fully used product
+      } else {
+        product.quantity -= quantityToSubtract;
+        await product.save();
+        quantityToSubtract = 0;
+      }
+    }
+
+    // 3. Check if product already exists in Product collection
     const existingProduct = await Product.findOne({ title });
 
     if (existingProduct) {
-      // ✅ Product exists — increase quantity
       existingProduct.quantity += quantity;
       await existingProduct.save();
       return res.status(200).json({
@@ -84,18 +141,20 @@ router.post("/products", async (req, res) => {
       });
     }
 
-    // ✅ Product does not exist — create new
+    // 4. Create new product if it doesn't exist
     const newProduct = new Product({ title, description, price, quantity, status });
     await newProduct.save();
 
     res.status(201).json({
-      message: "New product created.",
+      message: "New product Posted to the customer from the store.",
       product: newProduct,
     });
   } catch (err) {
-    res.status(400).json({ message: err.message });
+    console.error("Error posting product:", err);
+    res.status(500).json({ message: "Server error while posting product." });
   }
 });
+
 
 
 
