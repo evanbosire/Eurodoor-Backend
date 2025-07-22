@@ -797,13 +797,43 @@ router.put("/blacksmith/complete-task/:taskId", async (req, res) => {
 
 //    -----> IMPLEMENT THIS ALONE AS 'STORE'
 
-// Inventory Get all products in the product store 
+// // Inventory Get all products in the product store 
+// router.get("/products-store", async (req, res) => {
+//   try {
+//     const products = await ProductStore.find();
+
+//     res.status(200).json({
+//       message: "Products currently in the store",
+//       data: products
+//     });
+//   } catch (error) {
+//     console.error("Error fetching products from store:", error);
+//     res.status(500).json({ message: "Internal server error" });
+//   }
+// });
+// Inventory Get all products in the product store (aggregated by doorName)
 router.get("/products-store", async (req, res) => {
   try {
-    const products = await ProductStore.find();
+    const products = await ProductStore.aggregate([
+      {
+        $group: {
+          _id: "$doorName",
+          totalQuantity: { $sum: "$quantity" },
+          description: { $first: "$description" } // Optional: choose what to keep
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          doorName: "$_id",
+          quantity: "$totalQuantity",
+          description: 1
+        }
+      }
+    ]);
 
     res.status(200).json({
-      message: "Products currently in the store",
+      message: "Products currently in the store (aggregated by doorName)",
       data: products
     });
   } catch (error) {
@@ -811,5 +841,6 @@ router.get("/products-store", async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 });
+
 
 module.exports = router;
