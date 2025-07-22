@@ -431,6 +431,35 @@ router.get("/pending-material-requests", async (req, res) => {
 
 // // Step 9: Inventory releases raw materials
 // Release material based on a request
+// router.put("/inventory/release/:id", async (req, res) => {
+//   try {
+//     const request = await MaterialReleaseRequest.findById(req.params.id);
+//     if (!request) {
+//       return res.status(404).json({ message: "Material release request not found." });
+//     }
+
+//     // Ensure request hasn't already been released
+//     if (request.status === "released") {
+//       return res.status(400).json({ message: "This request has already been released." });
+//     }
+
+//     // Mark as released without deducting from stock
+//     request.status = "released";
+//     request.processedAt = new Date();
+//     await request.save();
+
+//     res.status(200).json({
+//       message: "Materials marked as released. Awaiting production approval.",
+//       request
+//     });
+
+//   } catch (error) {
+//     console.error("Error releasing materials:", error);
+//     res.status(500).json({ message: "Server error while releasing materials." });
+//   }
+// });
+
+// PUT /inventory/release/:id
 router.put("/inventory/release/:id", async (req, res) => {
   try {
     const request = await MaterialReleaseRequest.findById(req.params.id);
@@ -443,7 +472,27 @@ router.put("/inventory/release/:id", async (req, res) => {
       return res.status(400).json({ message: "This request has already been released." });
     }
 
-    // Mark as released without deducting from stock
+    // Check for valid quantity
+    if (request.quantity < 1) {
+      return res.status(400).json({ message: "Cannot release quantity less than 1." });
+    }
+
+    // Fetch raw material from stock
+    const stock = await RawMaterialStock.findOne({ materialName: request.materialName });
+    if (!stock) {
+      return res.status(400).json({
+        message: `Material '${request.materialName}' not found in stock. Please request from supplier.`
+      });
+    }
+
+    // Check if stock is sufficient
+    if (stock.quantity < request.quantity) {
+      return res.status(400).json({
+        message: `Insufficient stock for '${request.materialName}'. Requested: ${request.quantity}, Available: ${stock.quantity}. Please request from supplier.`
+      });
+    }
+
+    // Mark request as released
     request.status = "released";
     request.processedAt = new Date();
     await request.save();
