@@ -4,6 +4,7 @@ const Product = require("../models/Product");
 const Order = require("../models/Order");
 const InventoryLog = require("../models/InventoryLog");
 const Payment = require("../models/Payment");
+const ProductStore = require("../models/ProductStore");
 
 // ✅ POST: Add or update product by title
 
@@ -101,7 +102,13 @@ router.post("/products", async (req, res) => {
   try {
     const { title, description, price, quantity, status } = req.body;
 
-    // 1. Check total available quantity in ProductStore for the given doorName
+    const quantityNum = Number(quantity);
+    const priceNum = Number(price);
+
+    if (isNaN(quantityNum) || isNaN(priceNum)) {
+      return res.status(400).json({ message: "Invalid price or quantity value." });
+    }
+
     const storeProducts = await ProductStore.find({ doorName: title });
 
     if (!storeProducts.length) {
@@ -110,18 +117,17 @@ router.post("/products", async (req, res) => {
 
     const totalAvailable = storeProducts.reduce((acc, item) => acc + item.quantity, 0);
 
-    if (totalAvailable < quantity) {
+    if (totalAvailable < quantityNum) {
       return res.status(400).json({ message: "Not enough quantity available in the store." });
     }
 
-    // 2. Subtract quantity from ProductStore
-    let quantityToSubtract = quantity;
+    let quantityToSubtract = quantityNum;
     for (const product of storeProducts) {
       if (quantityToSubtract === 0) break;
 
       if (product.quantity <= quantityToSubtract) {
         quantityToSubtract -= product.quantity;
-        await ProductStore.findByIdAndDelete(product._id); // delete used
+        await ProductStore.findByIdAndDelete(product._id);
       } else {
         product.quantity -= quantityToSubtract;
         await product.save();
@@ -129,23 +135,21 @@ router.post("/products", async (req, res) => {
       }
     }
 
-    // 3. Check if product already exists in Product collection
     const existingProduct = await Product.findOne({ title });
 
     if (existingProduct) {
-      // ✅ Increment quantity and overwrite price
-      existingProduct.quantity += quantity;
-      existingProduct.price = price; // ⬅️ overwrite price
+      existingProduct.quantity += quantityNum;
+      existingProduct.price = priceNum;
+      existingProduct.description = description;
       await existingProduct.save();
 
       return res.status(200).json({
-        message: "Product already exists. Quantity updated and price overwritten.",
+        message: "Product already exists. Quantity updated, price and description overwritten.",
         product: existingProduct,
       });
     }
 
-    // 4. Create new product if it doesn't exist
-    const newProduct = new Product({ title, description, price, quantity, status });
+    const newProduct = new Product({ title, description, price: priceNum, quantity: quantityNum, status });
     await newProduct.save();
 
     res.status(201).json({
@@ -153,8 +157,9 @@ router.post("/products", async (req, res) => {
       product: newProduct,
     });
   } catch (err) {
-    console.error("Error posting product:", err);
-    res.status(500).json({ message: "Server error while posting product." });
+    console.error("Error posting product:", err.message);
+    console.error(err.stack);
+    res.status(500).json({ message: "Server error while posting product.", error: err.message });
   }
 });
 
