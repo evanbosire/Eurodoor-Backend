@@ -548,7 +548,7 @@ router.post("/production/release-request", async (req, res) => {
     await request.save();
     res.status(201).json(request);
   } catch (error) {
-    console.error("Error creating material release request:", error);
+   
     res.status(500).json({ message: "Internal server error" });
   }
 });
@@ -560,7 +560,7 @@ router.get("/inventory-released-materials", async (req, res) => {
     const releasedRequests = await MaterialReleaseRequest.find({ status: "released" });
     res.status(200).json(releasedRequests);
   } catch (error) {
-    console.error("Error fetching released materials:", error);
+   
     res.status(500).json({ message: "Server error" });
   }
 });
@@ -611,7 +611,7 @@ router.put("/approve-release/:id", async (req, res) => {
     res.status(200).json({ message: "Request approved and stock updated.", request });
 
   } catch (error) {
-    console.error("Error approving/rejecting release:", error);
+    
     res.status(500).json({ message: "Server error while processing approval." });
   }
 });
@@ -649,7 +649,7 @@ router.post("/assign-blacksmith-task/:requestId", async (req, res) => {
     });
 
   } catch (error) {
-    console.error("Error assigning task:", error);
+    
     res.status(500).json({ message: "Internal server error." });
   }
 });
@@ -727,6 +727,26 @@ router.get("/blacksmith/approved-releases", async (req, res) => {
   }
 });
 
+// GET /production/blacksmith-tasks - Fetch tasks with status "in-production"
+router.get("/blacksmith-tasks", async (req, res) => {
+  try {
+    // Fetch all tasks currently marked as "in-production"
+    const tasks = await AssignedTask.find({ status: "in-production" }).sort({ assignedAt: -1 });
+
+    if (!tasks.length) {
+      return res.status(404).json({ message: "No tasks currently in production." });
+    }
+
+    res.status(200).json({
+      message: "Blacksmith tasks fetched successfully.",
+      tasks
+    });
+
+  } catch (error) {
+    console.error("Error fetching tasks for blacksmith:", error);
+    res.status(500).json({ message: "Server error while fetching blacksmith tasks." });
+  }
+});
 
 
 // Step 11: Blacksmith marks task completed
