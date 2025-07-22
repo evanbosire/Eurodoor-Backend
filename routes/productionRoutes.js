@@ -472,20 +472,24 @@ router.put("/inventory/release/:id", async (req, res) => {
       return res.status(400).json({ message: "This request has already been released." });
     }
 
-    // Check for valid quantity
+    // Ensure requested quantity is valid
     if (request.quantity < 1) {
       return res.status(400).json({ message: "Cannot release quantity less than 1." });
     }
 
-    // Fetch raw material from stock
-    const stock = await RawMaterialStock.findOne({ materialName: request.materialName });
+    // Look up material in stock (case-insensitive)
+    const stock = await RawMaterialStock.findOne({
+      materialName: { $regex: new RegExp(`^${request.materialName}$`, 'i') }
+    });
+
+    // If not found, prompt to request from supplier
     if (!stock) {
       return res.status(400).json({
         message: `Material '${request.materialName}' not found in stock. Please request from supplier.`
       });
     }
 
-    // Check if stock is sufficient
+    // Ensure stock is enough
     if (stock.quantity < request.quantity) {
       return res.status(400).json({
         message: `Insufficient stock for '${request.materialName}'. Requested: ${request.quantity}, Available: ${stock.quantity}. Please request from supplier.`
@@ -507,6 +511,7 @@ router.put("/inventory/release/:id", async (req, res) => {
     res.status(500).json({ message: "Server error while releasing materials." });
   }
 });
+
 
 
 
