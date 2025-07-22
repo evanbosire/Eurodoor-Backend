@@ -114,14 +114,14 @@ router.post("/products", async (req, res) => {
       return res.status(400).json({ message: "Not enough quantity available in the store." });
     }
 
-    // 2. Subtract quantity from ProductStore (loop over documents until enough is deducted)
+    // 2. Subtract quantity from ProductStore
     let quantityToSubtract = quantity;
     for (const product of storeProducts) {
       if (quantityToSubtract === 0) break;
 
       if (product.quantity <= quantityToSubtract) {
         quantityToSubtract -= product.quantity;
-        await ProductStore.findByIdAndDelete(product._id); // delete fully used product
+        await ProductStore.findByIdAndDelete(product._id); // delete used
       } else {
         product.quantity -= quantityToSubtract;
         await product.save();
@@ -133,10 +133,13 @@ router.post("/products", async (req, res) => {
     const existingProduct = await Product.findOne({ title });
 
     if (existingProduct) {
+      // ✅ Increment quantity and overwrite price
       existingProduct.quantity += quantity;
+      existingProduct.price = price; // ⬅️ overwrite price
       await existingProduct.save();
+
       return res.status(200).json({
-        message: "Product already exists. Quantity updated.",
+        message: "Product already exists. Quantity updated and price overwritten.",
         product: existingProduct,
       });
     }
@@ -146,7 +149,7 @@ router.post("/products", async (req, res) => {
     await newProduct.save();
 
     res.status(201).json({
-      message: "New product Posted to the customer from the store.",
+      message: "New product posted to the customer from the store.",
       product: newProduct,
     });
   } catch (err) {
@@ -154,6 +157,7 @@ router.post("/products", async (req, res) => {
     res.status(500).json({ message: "Server error while posting product." });
   }
 });
+
 
 
 
