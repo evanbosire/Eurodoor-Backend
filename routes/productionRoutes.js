@@ -13,6 +13,9 @@ const ProductionRequest = require("../models/ProductionRequest");
 const MaterialReleaseRequest = require("../models/MaterialReleaseRequest");
 const AssignedTask = require("../models/AssignedTask");
 
+
+// INVENTORY
+
 // Step 1: Inventory  raw material request
 router.post("/raw-material/request", async (req, res) => {
   try {
@@ -39,6 +42,92 @@ router.post("/raw-material/request", async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 });
+
+// Step 4: Inventory accepts or rejects supplied materials
+router.put("/inventory/accept/:id", async (req, res) => {
+  try {
+    const request = await RawMaterialRequest.findById(req.params.id);
+
+    if (!request) {
+      return res.status(404).json({ message: "Raw material request not found." });
+    }
+
+    if (request.status !== "supplied") {
+      return res.status(400).json({ message: "Only supplied materials can be accepted or rejected." });
+    }
+
+    const { status } = req.body;
+
+    if (status === "accepted") {
+      const material = await RawMaterialStock.findOne({ materialName: request.materialName });
+
+      if (material) {
+        material.quantity += request.quantity;
+        await material.save();
+      } else {
+        await RawMaterialStock.create({
+          materialName: request.materialName,
+          quantity: request.quantity,
+          unit: request.unit,
+        });
+      }
+
+      request.status = "accepted";
+      request.paymentStatus = "unpaid";
+
+    } else if (status === "rejected") {
+      request.status = "rejected-by-inventory";
+    } else {
+      return res.status(400).json({ message: "Invalid status. Use 'accepted' or 'rejected'." });
+    }
+
+    await request.save();
+
+    res.json({
+      message: `Raw material ${status}`,
+      request,
+    });
+
+  } catch (error) {
+    console.error("Inventory decision error:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+// GET all raw material requests with status "supplied" — for inventory manager to review
+router.get("/inventory/supplied", async (req, res) => {
+  try {
+    const suppliedRequests = await RawMaterialRequest.find({ status: "supplied" });
+
+    res.json({
+      message: "Supplied raw material requests retrieved",
+      requests: suppliedRequests,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Failed to fetch supplied requests",
+      error: error.message,
+    });
+  }
+});
+// GET /api/store/materials - Fetch all raw materials currently in stock
+router.get("/store/materials", async (req, res) => {
+  try {
+    const stock = await RawMaterialStock.find();
+
+    res.json({
+      message: "Raw materials currently in store retrieved",
+      stock,
+    });
+  } catch (error) {
+    console.error("Failed to retrieve store materials:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+
+
+//  SUPPLIER
 
 // GET all raw material requests with status "pending" — for suppliers to view
 router.get("/supplier/pending", async (req, res) => {
@@ -232,94 +321,9 @@ paymentDate).toDateString()}`);
     res.status(500).json({ message: "Internal server error" });
   }
 });
+ 
 
-// GET all raw material requests with status "supplied" — for inventory manager to review
-router.get("/inventory/supplied", async (req, res) => {
-  try {
-    const suppliedRequests = await RawMaterialRequest.find({ status: "supplied" });
-
-    res.json({
-      message: "Supplied raw material requests retrieved",
-      requests: suppliedRequests,
-    });
-  } catch (error) {
-    res.status(500).json({
-      message: "Failed to fetch supplied requests",
-      error: error.message,
-    });
-  }
-});
-
-
-
-// Step 4: Inventory accepts or rejects supplied materials
-router.put("/inventory/accept/:id", async (req, res) => {
-  try {
-    const request = await RawMaterialRequest.findById(req.params.id);
-
-    if (!request) {
-      return res.status(404).json({ message: "Raw material request not found." });
-    }
-
-    if (request.status !== "supplied") {
-      return res.status(400).json({ message: "Only supplied materials can be accepted or rejected." });
-    }
-
-    const { status } = req.body;
-
-    if (status === "accepted") {
-      const material = await RawMaterialStock.findOne({ materialName: request.materialName });
-
-      if (material) {
-        material.quantity += request.quantity;
-        await material.save();
-      } else {
-        await RawMaterialStock.create({
-          materialName: request.materialName,
-          quantity: request.quantity,
-          unit: request.unit,
-        });
-      }
-
-      request.status = "accepted";
-      request.paymentStatus = "unpaid";
-
-    } else if (status === "rejected") {
-      request.status = "rejected-by-inventory";
-    } else {
-      return res.status(400).json({ message: "Invalid status. Use 'accepted' or 'rejected'." });
-    }
-
-    await request.save();
-
-    res.json({
-      message: `Raw material ${status}`,
-      request,
-    });
-
-  } catch (error) {
-    console.error("Inventory decision error:", error);
-    res.status(500).json({ message: "Internal server error" });
-  }
-});
-
-
-// GET /api/store/materials - Fetch all raw materials currently in stock
-router.get("/store/materials", async (req, res) => {
-  try {
-    const stock = await RawMaterialStock.find();
-
-    res.json({
-      message: "Raw materials currently in store retrieved",
-      stock,
-    });
-  } catch (error) {
-    console.error("Failed to retrieve store materials:", error);
-    res.status(500).json({ message: "Internal server error" });
-  }
-});
-
-
+// FINANCE
 
 // GET /api/finance/unpaid
 router.get("/finance/unpaid", async (req, res) => {
@@ -387,6 +391,9 @@ router.put("/finance/pay/:id", async (req, res) => {
 ///////////// ************* PRODUCTION PROCESS ******** /////////////////
 
 
+//  INVENTORY
+
+
 // Step 7: Inventory Manager requests production
 router.post("/door-production/request", async (req, res) => {
   try {
@@ -410,6 +417,53 @@ router.post("/door-production/request", async (req, res) => {
   }
 });
 
+// Inventory Manager views all pending raw material requests
+router.get("/pending-material-requests", async (req, res) => {
+  try {
+    const pendingRequests = await MaterialReleaseRequest.find({ status: "pending" }).sort({ requestedAt: -1 });
+
+    res.status(200).json(pendingRequests);
+  } catch (error) {
+    console.error("Error fetching pending material requests:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+// // Step 9: Inventory releases raw materials
+// Release material based on a request
+router.put("/inventory/release/:id", async (req, res) => {
+  try {
+    const request = await MaterialReleaseRequest.findById(req.params.id);
+    if (!request) {
+      return res.status(404).json({ message: "Material release request not found." });
+    }
+
+    // Ensure request hasn't already been released
+    if (request.status === "released") {
+      return res.status(400).json({ message: "This request has already been released." });
+    }
+
+    // Mark as released without deducting from stock
+    request.status = "released";
+    request.processedAt = new Date();
+    await request.save();
+
+    res.status(200).json({
+      message: "Materials marked as released. Awaiting production approval.",
+      request
+    });
+
+  } catch (error) {
+    console.error("Error releasing materials:", error);
+    res.status(500).json({ message: "Server error while releasing materials." });
+  }
+});
+
+
+
+//  PRODUCTION
+
+
 //  Production Manager gets all pending production requests
 router.get("/production/pending-requests", async (req, res) => {
   try {
@@ -421,43 +475,7 @@ router.get("/production/pending-requests", async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 });
-/////////////////////////////////
-//  Production Assigns blacksmith
-router.post("/assign-blacksmith-task/:requestId", async (req, res) => {
-  const { requestId } = req.params;
 
-  try {
-    // Fetch the production request
-    const productionRequest = await ProductionRequest.findById(requestId);
-
-    if (!productionRequest) {
-      return res.status(404).json({ message: "Production request not found." });
-    }
-
-    // Create and save the assigned task for blacksmith
-    const newTask = new AssignedTask({
-      doorName: productionRequest.doorName,
-      quantity: productionRequest.quantity,
-      description: productionRequest.description,
-      status: "in-production" // Task itself starts as "in-production"
-    });
-
-    await newTask.save();
-
-    // Update the original request status to "door-assigned"
-    productionRequest.status = "door-assigned";
-    await productionRequest.save();
-
-    res.status(201).json({
-      message: "Task assigned to blacksmith successfully.",
-      task: newTask
-    });
-
-  } catch (error) {
-    console.error("Error assigning task:", error);
-    res.status(500).json({ message: "Internal server error." });
-  }
-});
 
 // Production Manager requests raw materials
 router.post("/production/release-request", async (req, res) => {
@@ -480,69 +498,6 @@ router.post("/production/release-request", async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 });
-
-// Inventory Manager views all pending raw material requests
-router.get("/pending-material-requests", async (req, res) => {
-  try {
-    const pendingRequests = await MaterialReleaseRequest.find({ status: "pending" }).sort({ requestedAt: -1 });
-
-    res.status(200).json(pendingRequests);
-  } catch (error) {
-    console.error("Error fetching pending material requests:", error);
-    res.status(500).json({ message: "Internal server error" });
-  }
-});
-
-// // Step 9: Inventory releases raw materials
-router.put("/inventory/release/:id", async (req, res) => {
-  try {
-    // Find the material in inventory using the provided ID
-    const material = await RawMaterialStock.findById(req.params.id);
-
-    if (!material) {
-      return res.status(404).json({ message: "Material not found." });
-    }
-
-    // Mark as released (if applicable: maybe you're using a field to track this?)
-    material.status = "released"; // optional
-    material.releasedAt = new Date(); // optional
-
-    await material.save();
-
-    res.status(200).json({
-      message: "Raw materials released successfully.",
-      material
-    });
-
-  } catch (error) {
-    console.error("Error releasing materials:", error);
-    res.status(500).json({ message: "Server error while releasing materials." });
-  }
-});
-
-// // PUT /inventory/release/:id
-// router.put("/inventory/release/:id", async (req, res) => {
-//   try {
-//     const request = await MaterialReleaseRequest.findById(req.params.id);
-//     if (!request) {
-//       return res.status(404).json({ message: "Request not found." });
-//     }
-
-//     if (request.status !== "pending") {
-//       return res.status(400).json({ message: `Cannot release. Current status is '${request.status}'.` });
-//     }
-
-//     // Just change the status to 'released' (don't touch stock yet)
-//     request.status = "released";
-//     request.releasedAt = new Date();
-//     await request.save();
-
-//     res.status(200).json({ message: "Raw materials marked as released. Awaiting approval.", request });
-//   } catch (error) {
-//     console.error("Error releasing materials:", error);
-//     res.status(500).json({ message: "Server error while releasing materials." });
-//   }
-// });
 
 //  production gets released raw materials to blacksmiths for approval
 // GET /api/production/released-materials
@@ -607,44 +562,41 @@ router.put("/approve-release/:id", async (req, res) => {
   }
 });
 
-//  blacksmiths gets all approved raw materials released by the production manager
-router.get("/blacksmith/approved-releases", async (req, res) => {
-  try {
-    const approvedMaterials = await MaterialReleaseRequest.find({ status: "approved" });
 
-    if (approvedMaterials.length === 0) {
-      return res.status(404).json({ message: "No approved raw material requests found." });
-    }
-
-    res.status(200).json(approvedMaterials);
-  } catch (error) {
-    console.error("Error fetching approved releases:", error);
-    res.status(500).json({ message: "Server error while retrieving approved materials." });
-  }
-});
-
-
-
-// Step 11: Blacksmith marks task completed
-// Mark task as completed
-router.put("/blacksmith/complete-task/:taskId", async (req, res) => {
-  const { taskId } = req.params;
+//  Production Assigns blacksmith
+router.post("/assign-blacksmith-task/:requestId", async (req, res) => {
+  const { requestId } = req.params;
 
   try {
-    // Find the task by ID
-    const task = await AssignedTask.findById(taskId);
-    if (!task) {
-      return res.status(404).json({ message: "Assigned task not found" });
+    // Fetch the production request
+    const productionRequest = await ProductionRequest.findById(requestId);
+
+    if (!productionRequest) {
+      return res.status(404).json({ message: "Production request not found." });
     }
 
-    // Update status to completed
-    task.status = "completed";
-    await task.save();
+    // Create and save the assigned task for blacksmith
+    const newTask = new AssignedTask({
+      doorName: productionRequest.doorName,
+      quantity: productionRequest.quantity,
+      description: productionRequest.description,
+      status: "in-production" // Task itself starts as "in-production"
+    });
 
-    res.status(200).json({ message: "Task marked as completed successfully", task });
+    await newTask.save();
+
+    // Update the original request status to "door-assigned"
+    productionRequest.status = "door-assigned";
+    await productionRequest.save();
+
+    res.status(201).json({
+      message: "Task assigned to blacksmith successfully.",
+      task: newTask
+    });
+
   } catch (error) {
-    console.error("Error marking task as completed:", error);
-    res.status(500).json({ message: "Internal server error" });
+    console.error("Error assigning task:", error);
+    res.status(500).json({ message: "Internal server error." });
   }
 });
 
@@ -703,6 +655,52 @@ router.put("/task/approve/:id", async (req, res) => {
   }
 });
 
+//  BLACKSMITHS
+
+//  blacksmiths gets all approved raw materials released by the production manager
+router.get("/blacksmith/approved-releases", async (req, res) => {
+  try {
+    const approvedMaterials = await MaterialReleaseRequest.find({ status: "approved" });
+
+    if (approvedMaterials.length === 0) {
+      return res.status(404).json({ message: "No approved raw material requests found." });
+    }
+
+    res.status(200).json(approvedMaterials);
+  } catch (error) {
+    console.error("Error fetching approved releases:", error);
+    res.status(500).json({ message: "Server error while retrieving approved materials." });
+  }
+});
+
+
+
+// Step 11: Blacksmith marks task completed
+// Mark task as completed
+router.put("/blacksmith/complete-task/:taskId", async (req, res) => {
+  const { taskId } = req.params;
+
+  try {
+    // Find the task by ID
+    const task = await AssignedTask.findById(taskId);
+    if (!task) {
+      return res.status(404).json({ message: "Assigned task not found" });
+    }
+
+    // Update status to completed
+    task.status = "completed";
+    await task.save();
+
+    res.status(200).json({ message: "Task marked as completed successfully", task });
+  } catch (error) {
+    console.error("Error marking task as completed:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+
+
+//    -----> IMPLEMENT THIS ALONE AS 'STORE'
 
 // Inventory Get all products in the product store 
 router.get("/products-store", async (req, res) => {
