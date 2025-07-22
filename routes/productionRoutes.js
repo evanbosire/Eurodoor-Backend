@@ -654,6 +654,27 @@ router.post("/assign-blacksmith-task/:requestId", async (req, res) => {
   }
 });
 
+
+// Step 11: Production gets all completed tasks
+router.get("/blacksmith-completed-tasks", async (req, res) => {
+  try {
+    const completedTasks = await AssignedTask.find({ status: "completed" });
+
+    if (completedTasks.length === 0) {
+      return res.status(404).json({ message: "No completed tasks found." });
+    }
+
+    res.status(200).json({
+      message: "Completed tasks retrieved successfully.",
+      tasks: completedTasks
+    });
+  } catch (error) {
+    console.error("Error fetching completed tasks:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+
 // Step 12: Production approves completed task
 router.put("/task/approve/:id", async (req, res) => {
   try {
