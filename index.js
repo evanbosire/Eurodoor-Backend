@@ -16,6 +16,8 @@ const dispatchRoutes = require("./routes/dispatch");
 const driverRoutes = require("./routes/driver");
 
 const productionRoutes = require("./routes/productionRoutes");
+const reportRoutes = require("./routes/reportRoutes");
+const downloadReportRoutes = require("./routes/downloadReportRoutes");
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -52,6 +54,9 @@ app.use("/api/dispatch", dispatchRoutes);          // Dispatch Manager duties
 app.use("/api/driver", driverRoutes);              // Driver deliveries
 
 app.use("/api/production", productionRoutes);      //production routes 
+
+app.use("/api/reports", reportRoutes);  // reports routes
+app.use("/api/reports", downloadReportRoutes);
 
 
 app.use("/receipts", express.static(path.join(__dirname, "public/receipts")));
