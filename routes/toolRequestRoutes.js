@@ -129,47 +129,84 @@ router.get("/tool-requests/approved/:email", async (req, res) => {
 router.put("/tool-requests/:id/return", async (req, res) => {
   try {
     const requestId = req.params.id;
-    const { tools } = req.body; // each tool includes quantityReturned
+    const { tools } = req.body;
+
+    // Validate input
+    if (!tools || !Array.isArray(tools)) {
+      return res.status(400).json({ message: "Invalid tools data format" });
+    }
 
     const request = await ToolRequest.findById(requestId);
-    if (!request) return res.status(404).json({ message: "Request not found" });
+    if (!request) {
+      return res.status(404).json({ message: "Request not found" });
+    }
 
     let allReturned = true;
+    const session = await mongoose.startSession();
+    session.startTransaction();
 
-    for (const returnedTool of tools) {
-      const toolInStore = await Tool.findById(returnedTool.toolId);
-      const toolInRequest = request.tools.find(t => t.toolId.toString() === returnedTool.toolId);
+    try {
+      for (const returnedTool of tools) {
+        // Convert toolId to string for comparison
+        const toolIdString = returnedTool.toolId.toString();
+        
+        // Find the tool in the request
+        const toolInRequest = request.tools.find(t => 
+          t.toolId.toString() === toolIdString
+        );
+        
+        if (!toolInRequest) {
+          throw new Error(`Tool with ID ${toolIdString} not found in request`);
+        }
 
-      if (!toolInRequest) {
-        return res.status(400).json({ message: `Tool with ID ${returnedTool.toolId} not found in request` });
+        // Initialize quantityReturned if undefined
+        if (typeof toolInRequest.quantityReturned !== 'number') {
+          toolInRequest.quantityReturned = 0;
+        }
+
+        // Update inventory
+        const toolInStore = await Tool.findById(toolIdString).session(session);
+        if (!toolInStore) {
+          throw new Error(`Tool with ID ${toolIdString} not found in inventory`);
+        }
+
+        toolInStore.quantityAvailable += returnedTool.quantityReturned;
+        await toolInStore.save();
+
+        // Update request
+        toolInRequest.quantityReturned += returnedTool.quantityReturned;
+        
+        // Update return status
+        if (toolInRequest.quantityReturned < toolInRequest.quantityApproved) {
+          toolInRequest.returnStatus = "Partially Returned";
+          allReturned = false;
+        } else {
+          toolInRequest.returnStatus = "Fully Returned";
+        }
       }
 
-      // Initialize quantityReturned if undefined
-      if (typeof toolInRequest.quantityReturned !== 'number') {
-        toolInRequest.quantityReturned = 0;
+      // Update overall request status if all returned
+      if (allReturned) {
+        request.status = "Returned";
       }
 
-      toolInRequest.quantityReturned += returnedTool.quantityReturned;
-      toolInStore.quantityAvailable += returnedTool.quantityReturned;
-      await toolInStore.save();
-
-      if (toolInRequest.quantityReturned < toolInRequest.quantityApproved) {
-        toolInRequest.returnStatus = "Partially Returned";
-        allReturned = false;
-      } else {
-        toolInRequest.returnStatus = "Fully Returned";
-      }
+      await request.save({ session });
+      await session.commitTransaction();
+      res.json({ 
+        message: "Tools returned successfully", 
+        request 
+      });
+    } catch (error) {
+      await session.abortTransaction();
+      throw error;
+    } finally {
+      session.endSession();
     }
-
-    if (allReturned) {
-      request.status = "Returned";
-    }
-
-    await request.save();
-    res.json({ message: "Tools returned successfully", request });
   } catch (error) {
-    console.error("Return error:", error); // Add this for server-side logging
-    res.status(500).json({ message: "Failed to return tools", error: error.message });
+    console.error("Return error:", error);
+    res.status(400).json({ 
+      message: error.message || "Failed to return tools"
+    });
   }
 });
 
