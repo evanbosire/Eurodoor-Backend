@@ -11,7 +11,7 @@ const toolRequestSchema = new mongoose.Schema({
       quantityReturned: { type: Number, default: 0 },
       returnStatus: {
         type: String,
-        enum: ["Pending", "Partially Returned", "Fully Returned", "Not Returned"],
+        enum: ["Pending", "Partially Returned", "Fully Returned", "Not Returned", "Returned"],
         default: "Not Returned"
       }
     }
