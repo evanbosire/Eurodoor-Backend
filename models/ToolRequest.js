@@ -11,12 +11,12 @@ const toolRequestSchema = new mongoose.Schema({
       quantityReturned: { type: Number, default: 0 },
       returnStatus: {
         type: String,
-        enum: ["Pending", "Partially Returned", "Fully Returned", "Not Returned", "Returned"],
+        enum: ["Pending", "Partially Returned", "Fully Returned", "Not Returned"],
         default: "Not Returned"
       }
     }
   ],
-  status: { type: String, enum: ["Pending", "Approved", "Rejected"], default: "Pending" },
+  status: { type: String, enum: ["Pending", "Approved", "Rejected", "Returned"], default: "Pending" },
   requestDate: { type: Date, default: Date.now }
 });
 
