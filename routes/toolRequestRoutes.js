@@ -125,7 +125,7 @@ router.get("/tool-requests/approved/:email", async (req, res) => {
   }
 });
 
-// 7. Technician returns tools
+// Technician returns tools
 router.put("/tool-requests/:id/return", async (req, res) => {
   try {
     const requestId = req.params.id;
@@ -139,6 +139,15 @@ router.put("/tool-requests/:id/return", async (req, res) => {
     for (const returnedTool of tools) {
       const toolInStore = await Tool.findById(returnedTool.toolId);
       const toolInRequest = request.tools.find(t => t.toolId.toString() === returnedTool.toolId);
+
+      if (!toolInRequest) {
+        return res.status(400).json({ message: `Tool with ID ${returnedTool.toolId} not found in request` });
+      }
+
+      // Initialize quantityReturned if undefined
+      if (typeof toolInRequest.quantityReturned !== 'number') {
+        toolInRequest.quantityReturned = 0;
+      }
 
       toolInRequest.quantityReturned += returnedTool.quantityReturned;
       toolInStore.quantityAvailable += returnedTool.quantityReturned;
@@ -159,8 +168,10 @@ router.put("/tool-requests/:id/return", async (req, res) => {
     await request.save();
     res.json({ message: "Tools returned successfully", request });
   } catch (error) {
-    res.status(500).json({ message: "Failed to return tools", error });
+    console.error("Return error:", error); // Add this for server-side logging
+    res.status(500).json({ message: "Failed to return tools", error: error.message });
   }
 });
+
 
 module.exports = router;
