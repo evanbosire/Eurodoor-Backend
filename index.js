@@ -18,6 +18,7 @@ const driverRoutes = require("./routes/driver");
 const productionRoutes = require("./routes/productionRoutes");
 const reportRoutes = require("./routes/reportRoutes");
 const downloadReportRoutes = require("./routes/downloadReportRoutes");
+const toolRequestRoutes = require("./routes/toolRequestRoutes"); // Request tools by technician.
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -57,6 +58,8 @@ app.use("/api/production", productionRoutes);      //production routes
 
 app.use("/api/reports", reportRoutes);  // reports routes
 app.use("/api/reports", downloadReportRoutes);
+
+app.use("/api/process", toolRequestRoutes);
 
 
 app.use("/receipts", express.static(path.join(__dirname, "public/receipts")));
